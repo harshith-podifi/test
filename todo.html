@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simple Todo</title>
+  <style>
+    :root {
+      font-family: system-ui, sans-serif;
+      color: #1a1a1a;
+      background: #f4f6f8;
+      line-height: 1.4;
+    }
+    body {
+      max-width: 32rem;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; }
+    .panel {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid #ccd3dc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    button {
+      padding: 0.5rem 0.85rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 500;
+    }
+    button:hover { background: #1d4ed8; }
+    button.secondary {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    button.secondary:hover { background: #d1d5db; }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid #eef1f5;
+    }
+    li:last-child { border-bottom: none; }
+    li span { flex: 1; }
+    li.done span {
+      text-decoration: line-through;
+      color: #9ca3af;
+    }
+    .muted { font-size: 0.875rem; color: #6b7280; margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>Todo</h1>
+  <div class="panel">
+    <div class="row">
+      <label for="todo-input" class="visually-hidden" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;">New task</label>
+      <input id="todo-input" data-testid="todo-input" type="text" placeholder="What needs doing?" autocomplete="off" />
+      <button type="button" id="todo-add" data-testid="todo-add">Add</button>
+    </div>
+    <ul id="todo-list" data-testid="todo-list"></ul>
+    <p class="muted">Stored on this device only.</p>
+  </div>
+
+  <script>
+    (function () {
+      var STORAGE_KEY = 'simple-todo-items';
+
+      function loadItems() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          var parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveItems(items) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      }
+
+      function uid() {
+        return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      }
+
+      var input = document.getElementById('todo-input');
+      var addBtn = document.getElementById('todo-add');
+      var list = document.getElementById('todo-list');
+
+      function render(items) {
+        list.innerHTML = '';
+        items.forEach(function (item) {
+          var li = document.createElement('li');
+          if (item.done) li.className = 'done';
+
+          var check = document.createElement('input');
+          check.type = 'checkbox';
+          check.checked = item.done;
+          check.setAttribute('aria-label', 'Done');
+          check.addEventListener('change', function () {
+            item.done = check.checked;
+            li.classList.toggle('done', item.done);
+            saveItems(loadItems().map(function (x) {
+              return x.id === item.id ? item : x;
+            }));
+          });
+
+          var span = document.createElement('span');
+          span.textContent = item.text;
+
+          var del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'secondary';
+          del.textContent = 'Remove';
+          del.addEventListener('click', function () {
+            var next = loadItems().filter(function (x) { return x.id !== item.id; });
+            saveItems(next);
+            render(next);
+          });
+
+          li.appendChild(check);
+          li.appendChild(span);
+          li.appendChild(del);
+          list.appendChild(li);
+        });
+      }
+
+      function addTask() {
+        var text = (input.value || '').trim();
+        if (!text) return;
+        input.value = '';
+        var items = loadItems();
+        items.push({ id: uid(), text: text, done: false });
+        saveItems(items);
+        render(items);
+        input.focus();
+      }
+
+      addBtn.addEventListener('click', addTask);
+      input.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') addTask();
+      });
+
+      render(loadItems());
+    })();
+  </script>
+</body>
+</html>
