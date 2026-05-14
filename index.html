@@ -138,11 +138,22 @@
     .del-btn:hover {
       background: color-mix(in srgb, var(--danger) 12%, transparent);
     }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Todos</h1>
+  <main aria-labelledby="main-heading">
+    <h1 id="main-heading">Todos</h1>
     <form class="composer" id="add-form" autocomplete="off">
       <div class="field">
         <label for="todo-input">New task</label>
@@ -150,6 +161,7 @@
       </div>
       <button type="submit" class="add-btn" id="add-btn">Add</button>
     </form>
+    <p id="app-status" class="sr-only" role="status" aria-live="polite"></p>
     <div class="list-wrap" id="list-wrap" aria-live="polite">
       <p class="empty" id="empty-msg">No tasks yet. Add one above.</p>
       <ul id="todo-list" hidden></ul>
@@ -161,6 +173,15 @@
   var MAX_LEN = 500;
 
   /** @typedef {{ id: string, text: string, done: boolean }} TodoItem */
+
+  /**
+   * Checkbox name/state must track whether activating it completes or reopens the task.
+   * @param {TodoItem} todo
+   * @returns {string}
+   */
+  function toggleAriaLabel(todo) {
+    return (todo.done ? "Mark as not done: " : "Mark as done: ") + todo.text;
+  }
 
   /** @returns {string} */
   function newId() {
@@ -189,15 +210,29 @@
     }
   }
 
-  /** @param {TodoItem[]} todos */
+  /** @param {TodoItem[]} todos @returns {boolean} */
   function saveTodos(todos) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+      return true;
+    } catch (_err) {
+      return false;
+    }
   }
 
   var form = document.getElementById("add-form");
   var input = document.getElementById("todo-input");
   var listEl = document.getElementById("todo-list");
   var emptyEl = document.getElementById("empty-msg");
+  var statusEl = document.getElementById("app-status");
+
+  function reportSaveFailure() {
+    if (statusEl) statusEl.textContent = "Could not save tasks. Storage may be full or disabled.";
+  }
+
+  function clearStatus() {
+    if (statusEl) statusEl.textContent = "";
+  }
   /** @type {TodoItem[]} */
   var todos = loadTodos();
 
@@ -217,11 +252,19 @@
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = todo.done;
-      cb.setAttribute("aria-label", "Complete: " + todo.text);
+      cb.setAttribute("aria-label", toggleAriaLabel(todo));
       cb.addEventListener("change", function () {
+        var prev = todo.done;
         todo.done = cb.checked;
-        saveTodos(todos);
+        if (!saveTodos(todos)) {
+          todo.done = prev;
+          cb.checked = prev;
+          reportSaveFailure();
+          return;
+        }
+        clearStatus();
         li.classList.toggle("done", todo.done);
+        cb.setAttribute("aria-label", toggleAriaLabel(todo));
       });
 
       var span = document.createElement("span");
@@ -234,8 +277,14 @@
       del.textContent = "Delete";
       del.setAttribute("aria-label", "Delete: " + todo.text);
       del.addEventListener("click", function () {
+        var snapshot = todos;
         todos = todos.filter(function (t) { return t.id !== todo.id; });
-        saveTodos(todos);
+        if (!saveTodos(todos)) {
+          todos = snapshot;
+          reportSaveFailure();
+          return;
+        }
+        clearStatus();
         render();
       });
 
@@ -251,8 +300,14 @@
     var text = (input.value || "").trim();
     if (!text) return;
     if (text.length > MAX_LEN) text = text.slice(0, MAX_LEN);
-    todos.push({ id: newId(), text: text, done: false });
-    saveTodos(todos);
+    var row = { id: newId(), text: text, done: false };
+    todos.push(row);
+    if (!saveTodos(todos)) {
+      todos.pop();
+      reportSaveFailure();
+      return;
+    }
+    clearStatus();
     input.value = "";
     render();
     input.focus();
