@@ -1,1 +1,1 @@
-Hello guys
+Placeholder: application scaffold and product copy will replace this file when the first implementation branch lands.
