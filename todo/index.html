@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simple todo</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f2ee;
+      --surface: #fffdf9;
+      --border: rgba(30, 25, 20, 0.12);
+      --text: #1c1917;
+      --muted: #78716c;
+      --accent: #0d9488;
+      --accent-hover: #0f766e;
+      --danger: #dc2626;
+      --radius: 12px;
+      --shadow: 0 2px 14px rgba(28, 25, 23, 0.06);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1917;
+        --surface: #292524;
+        --border: rgba(245, 245, 244, 0.12);
+        --text: #fafaf9;
+        --muted: #a8a29e;
+        --shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+      }
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      max-width: 32rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 3rem;
+    }
+    header {
+      margin-bottom: 1.75rem;
+    }
+    h1 {
+      font-size: 1.65rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.35rem;
+    }
+    .lede {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    form {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+    label {
+      flex: 1;
+      min-width: 0;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1rem;
+      box-shadow: var(--shadow);
+    }
+    input[type="text"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    button {
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.08s ease;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    .btn-add {
+      padding: 0.65rem 1rem;
+      background: var(--accent);
+      color: #fafafa;
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+    }
+    .btn-add:hover {
+      background: var(--accent-hover);
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 4px);
+      padding: 0.35rem 0;
+      box-shadow: var(--shadow);
+      min-height: 4rem;
+    }
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    li:last-child {
+      border-bottom: none;
+    }
+    li.done span.label {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+    li span.label {
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+    .btn-remove {
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+      background: transparent;
+      color: var(--danger);
+      border-radius: 8px;
+    }
+    .btn-remove:hover {
+      background: rgba(220, 38, 38, 0.08);
+    }
+    .empty {
+      padding: 1.5rem 1rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    footer {
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Todos</h1>
+      <p class="lede">Tasks stay on this device via local storage.</p>
+    </header>
+
+    <form id="add-form" autocomplete="off">
+      <label for="todo-input">
+        <span class="visually-hidden">New task</span>
+        <input
+          id="todo-input"
+          type="text"
+          maxlength="500"
+          placeholder="What needs doing?"
+          required
+          aria-label="New task"
+        />
+      </label>
+      <button type="submit" class="btn-add">Add</button>
+    </form>
+
+    <section class="panel" aria-labelledby="list-heading">
+      <h2 id="list-heading" class="visually-hidden">Your tasks</h2>
+      <ul id="todo-list" aria-live="polite"></ul>
+      <p id="empty-msg" class="empty">Nothing here yet — add your first task.</p>
+    </section>
+
+    <footer>Saved automatically in this browser.</footer>
+  </main>
+
+  <style>
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+
+  <script>
+    (function () {
+      var STORAGE_KEY = "simple-todo-webpage:v1";
+
+      /**
+       * @typedef {{ id: string, text: string, done: boolean }} TodoItem
+       */
+
+      var form = document.getElementById("add-form");
+      var input = document.getElementById("todo-input");
+      var list = document.getElementById("todo-list");
+      var emptyMsg = document.getElementById("empty-msg");
+
+      /** @returns {TodoItem[]} */
+      function loadTodos() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          var parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) return [];
+          return parsed.filter(function (row) {
+            return row && typeof row.id === "string" && typeof row.text === "string";
+          });
+        } catch (e) {
+          return [];
+        }
+      }
+
+      /** @param {TodoItem[]} todos */
+      function saveTodos(todos) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+      }
+
+      /** @param {TodoItem[]} todos */
+      function render(todos) {
+        list.innerHTML = "";
+        emptyMsg.hidden = todos.length > 0;
+
+        todos.forEach(function (item) {
+          var li = document.createElement("li");
+          li.className = item.done ? "done" : "";
+          li.dataset.id = item.id;
+
+          var cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = item.done;
+          cb.setAttribute("aria-label", "Mark complete: " + item.text);
+          cb.addEventListener("change", function () {
+            var next = loadTodos().map(function (t) {
+              return t.id === item.id ? Object.assign({}, t, { done: cb.checked }) : t;
+            });
+            saveTodos(next);
+            render(next);
+          });
+
+          var span = document.createElement("span");
+          span.className = "label";
+          span.textContent = item.text;
+
+          var rm = document.createElement("button");
+          rm.type = "button";
+          rm.className = "btn-remove";
+          rm.textContent = "Remove";
+          rm.setAttribute("aria-label", "Remove: " + item.text);
+          rm.addEventListener("click", function () {
+            var next = loadTodos().filter(function (t) {
+              return t.id !== item.id;
+            });
+            saveTodos(next);
+            render(next);
+          });
+
+          li.appendChild(cb);
+          li.appendChild(span);
+          li.appendChild(rm);
+          list.appendChild(li);
+        });
+      }
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var text = input.value.trim();
+        if (!text) return;
+
+        var todos = loadTodos();
+        todos.unshift({
+          id: crypto.randomUUID(),
+          text: text,
+          done: false,
+        });
+        saveTodos(todos);
+        input.value = "";
+        input.focus();
+        render(todos);
+      });
+
+      render(loadTodos());
+    })();
+  </script>
+</body>
+</html>
